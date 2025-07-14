@@ -54,7 +54,8 @@ function hasInfo(userMessage, keyword) {
   return false;
 }
 
-function isFemaleUser(userMessage) {
+function isFemaleUser(userMessage, avatar) {
+  if (avatar && avatar.gender && avatar.gender.toLowerCase() === 'female') return true;
   const text = userMessage.toLowerCase();
   return /\b(female|woman|ladki|girl|mahila|aurat)\b/.test(text);
 }
@@ -120,9 +121,10 @@ function buildSystemInstruction(avatar, categoryName, userMessage) {
   if (categoryName && CATEGORY_QUESTIONS[categoryName.toLowerCase()]) {
     const missing = [];
     const questions = CATEGORY_QUESTIONS[categoryName.toLowerCase()];
+    const isFemale = isFemaleUser(userMessage, avatar);
     for (const key of questions) {
       // For personal styling, handle female-specific
-      if (categoryName.toLowerCase() === 'personal styling' && isFemaleUser(userMessage)) {
+      if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
         if (['height', 'weight'].includes(key)) continue; // skip general height/weight for female
         if (key === 'bust' && !hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
         if (key === 'waist' && !hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
@@ -130,14 +132,14 @@ function buildSystemInstruction(avatar, categoryName, userMessage) {
       }
       if (!hasInfo(userMessage, key)) {
         // Female-specific: add bust/waist/hips for personal styling
-        if (categoryName.toLowerCase() === 'personal styling' && isFemaleUser(userMessage)) {
+        if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
           if (key === 'age') missing.push('What is your age?');
         }
         else missing.push(getQuestionText(key));
       }
     }
     // For female users in personal styling, always ask bust/waist/hips if not present
-    if (categoryName.toLowerCase() === 'personal styling' && isFemaleUser(userMessage)) {
+    if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
       if (!hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
       if (!hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
       if (!hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
