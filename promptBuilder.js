@@ -9,9 +9,15 @@ function buildSystemInstruction(avatar, categoryName, userMessage) {
   return `You are ${avatar.name}, a helpful expert in ${categoryName}. Focus on ${categoryName?.toLowerCase()}-related questions. If the user asks for a list, format your answer as a numbered or bulleted list. ${languageInstruction}`;
 }
 
+// Build the context prompt from messages
+function buildContextPrompt(messages, userMessage) {
+  // Join all messages as context
+  return messages.map(m => `${m.sender}: ${m.content}`).join('\n') + `\nuser: ${userMessage}`;
+}
+
 // Build the full prompt for the model
 function buildFullPrompt(systemInstruction, answerLength, contextPrompt) {
   return `${systemInstruction}\n${answerLength}\n${contextPrompt}`;
 }
 
-module.exports = { buildSystemInstruction, buildFullPrompt }; 
+module.exports = { buildSystemInstruction, buildFullPrompt, buildContextPrompt }; 
