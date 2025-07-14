@@ -113,44 +113,50 @@ const CATEGORY_QUESTIONS = {
 
 // Build the system instruction for persona, scope, and language
 function buildSystemInstruction(avatar, categoryName, userMessage) {
-  let languageInstruction = '';
-  if (isRomanHindi(userMessage)) {
-    languageInstruction = 'Reply in Roman Hindi (Hindi using English/Latin letters).';
-  }
-  let personalizationInstruction = '';
-  if (categoryName && CATEGORY_QUESTIONS[categoryName.toLowerCase()]) {
-    const missing = [];
-    const questions = CATEGORY_QUESTIONS[categoryName.toLowerCase()];
-    const isFemale = isFemaleUser(userMessage, avatar);
-    for (const key of questions) {
-      // For personal styling, handle female-specific
-      if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
-        if (['height', 'weight'].includes(key)) continue; // skip general height/weight for female
-        if (key === 'bust' && !hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
-        if (key === 'waist' && !hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
-        if (key === 'hips' && !hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
-      }
-      if (!hasInfo(userMessage, key)) {
-        // Female-specific: add bust/waist/hips for personal styling
-        if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
-          if (key === 'age') missing.push('What is your age?');
+  try {
+    let languageInstruction = '';
+    if (isRomanHindi(userMessage)) {
+      languageInstruction = 'Reply in Roman Hindi (Hindi using English/Latin letters).';
+    }
+    let personalizationInstruction = '';
+    const safeCategory = typeof categoryName === 'string' ? categoryName.toLowerCase() : '';
+    if (safeCategory && CATEGORY_QUESTIONS[safeCategory]) {
+      const missing = [];
+      const questions = CATEGORY_QUESTIONS[safeCategory];
+      const isFemale = isFemaleUser(userMessage, avatar);
+      for (const key of questions) {
+        // For personal styling, handle female-specific
+        if (safeCategory === 'personal styling' && isFemale) {
+          if (['height', 'weight'].includes(key)) continue; // skip general height/weight for female
+          if (key === 'bust' && !hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
+          if (key === 'waist' && !hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
+          if (key === 'hips' && !hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
         }
-        else missing.push(getQuestionText(key));
+        if (!hasInfo(userMessage, key)) {
+          // Female-specific: add bust/waist/hips for personal styling
+          if (safeCategory === 'personal styling' && isFemale) {
+            if (key === 'age') missing.push('What is your age?');
+          }
+          else missing.push(getQuestionText(key));
+        }
+      }
+      // For female users in personal styling, always ask bust/waist/hips if not present
+      if (safeCategory === 'personal styling' && isFemale) {
+        if (!hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
+        if (!hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
+        if (!hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
+      }
+      if (missing.length > 0) {
+        personalizationInstruction = `Before proceeding with your style request, I would like to know a few things about you.\nPlease answer the following questions as a numbered or bulleted list:\n${missing.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
+      } else {
+        personalizationInstruction = 'You have all the necessary details. Give highly personalized advice based on the provided information.';
       }
     }
-    // For female users in personal styling, always ask bust/waist/hips if not present
-    if (categoryName.toLowerCase() === 'personal styling' && isFemale) {
-      if (!hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
-      if (!hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
-      if (!hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
-    }
-    if (missing.length > 0) {
-      personalizationInstruction = `Before proceeding with your style request, I would like to know a few things about you.\nPlease answer the following questions as a numbered or bulleted list:\n${missing.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
-    } else {
-      personalizationInstruction = 'You have all the necessary details. Give highly personalized advice based on the provided information.';
-    }
+    return `You are ${avatar && avatar.name ? avatar.name : 'the stylist'}, a helpful expert in ${categoryName || 'style'}. Focus on ${safeCategory}-related questions. If the user asks for a list, format your answer as a numbered or bulleted list. ${personalizationInstruction} ${languageInstruction}`;
+  } catch (err) {
+    console.error('Error in buildSystemInstruction:', err);
+    return 'You are a helpful stylist. Please answer the user question.';
   }
-  return `You are ${avatar.name}, a helpful expert in ${categoryName}. Focus on ${categoryName?.toLowerCase()}-related questions. If the user asks for a list, format your answer as a numbered or bulleted list. ${personalizationInstruction} ${languageInstruction}`;
 }
 
 function getQuestionText(key) {
