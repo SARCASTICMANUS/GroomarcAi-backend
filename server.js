@@ -24,21 +24,27 @@ app.get('/api/health', (req, res) => {
 
 // Try to load chat routes, but don't crash if they fail
 try {
+  console.log('DEBUG: Attempting to require ./chat');
   const chatRoute = require('./chat');
-  app.use('/', chatRoute);
+  console.log('DEBUG: ./chat required successfully:', chatRoute);
+  app.use('/api', chatRoute);
   console.log('✅ Chat routes loaded successfully');
+  // Debug: print all registered route paths
+  if (chatRoute.stack) {
+    console.log('Registered chatRoute paths:', chatRoute.stack.map(r => r.route && r.route.path));
+  }
 } catch (error) {
-  console.error('❌ Error loading chat routes:', error.message);
+  console.error('❌ Error loading chat routes:', error);
   console.log('⚠️  Running in basic mode without chat functionality');
-  
-  // Fallback chat endpoint
+
+  // Ensure /api/puter-chat and /api/puter-result are always available as fallback ONLY if chat.js fails
   app.post('/api/puter-chat', (req, res) => {
     res.json({ 
-      allowed: true, 
-      prompt: 'This is a fallback response. Chat routes are not loaded properly.' 
+      allowed: false, 
+      prompt: 'Chat routes are not loaded properly. This is a fallback response.' 
     });
   });
-  
+
   app.post('/api/puter-result', (req, res) => {
     res.json({ status: 'ok' });
   });
