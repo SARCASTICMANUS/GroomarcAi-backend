@@ -13,4 +13,4 @@ function buildContextPrompt(messages, currentUserMessage) {
   return context;
 }
 
-module.exports = { CONTEXT_MESSAGE_COUNT, buildContextPrompt }; 
+module.exports = { CONTEXT_MESSAGE_COUNT, buildContextPrompt };
