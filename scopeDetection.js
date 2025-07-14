@@ -86,7 +86,7 @@ function isPopQuestion(text, readyQuestions) {
 // Enhanced in-scope check: if any of the last 5 user messages (plus current) are in-scope, treat as in-scope.
 // After 6, only treat as in-scope if the current message matches pop/cat keywords.
 function isInScopeWithContext(currentMessage, messages, categoryName, readyQuestions) {
-  const userMessages = messages.filter(m => m.sender === 'user');
+  const userMessages = Array.isArray(messages) ? messages.filter(m => m.sender === 'user') : [];
   if (userMessages.length < 5) {
     // Use up to last 5 previous user messages + current
     const recentUserMessages = userMessages.slice(-5).map(m => m.content);
