@@ -98,9 +98,37 @@ function isInScopeWithContext(currentMessage, messages, categoryName, readyQuest
   }
 }
 
+const CLOSING_MESSAGES = [
+  'bye', 'ok', 'okay', 'thanks', 'thank you', 'see you', 'goodbye', 'shukriya', 'dhanyavaad'
+];
+
+const PERSONAL_PATTERNS = [
+  /aap.*kha(n|na) kh(a|aya|ayi|aye)/i,
+  /aap.*kaise ho/i,
+  /aap.*kaha(n|ha) se/i,
+  /tum.*kaise ho/i,
+  /tum.*kaha(n|ha) se/i
+];
+
+function detectBoundaryType(message) {
+  const text = message.trim().toLowerCase();
+  if (CLOSING_MESSAGES.includes(text)) return 'closing';
+  for (const pattern of PERSONAL_PATTERNS) {
+    if (pattern.test(text)) return 'personal';
+  }
+  return null;
+}
+
+const BOUNDARY_RESPONSES = {
+  closing: 'Thank you for connecting! Happy to help you 😊',
+  personal: 'Main sirf styling/grooming se related sawaalon ke liye hoon 😊'
+};
+
 module.exports = {
   CATEGORY_KEYWORDS,
   isRelatedToCategory,
   isPopQuestion,
-  isInScopeWithContext
+  isInScopeWithContext,
+  detectBoundaryType,
+  BOUNDARY_RESPONSES
 }; 
