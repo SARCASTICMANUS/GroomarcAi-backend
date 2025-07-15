@@ -5,24 +5,28 @@ const cors = require('cors');
 
 const app = express();
 
-const allowedOrigins = ["https://groomarc-ai-icc3.vercel.app"];
+// ✅ Allow both production and local dev frontends
+const allowedOrigins = [
+  "https://groomarc-ai-icc3.vercel.app", // Vercel
+  "http://localhost:3000"                // Local React
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log("🌐 CORS Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error("❌ Not allowed by CORS: " + origin));
     }
   },
   credentials: true,
 };
 
 app.use(cors(corsOptions));
-
 app.use(bodyParser.json());
 
-// Health check endpoint
+// ✅ Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -31,26 +35,32 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Try to load chat routes, but don't crash if they fail
+// ✅ Try to load chat routes safely
 try {
-  console.log('DEBUG: Attempting to require ./chat');
+  console.log('🔄 Attempting to load ./chat');
   const chatRoute = require('./chat');
-  console.log('DEBUG: ./chat required successfully:', chatRoute);
+  
+  if (!chatRoute) throw new Error("chat.js did not export anything");
+
   app.use('/api', chatRoute);
   console.log('✅ Chat routes loaded successfully');
-  // Debug: print all registered route paths
-  if (chatRoute.stack) {
-    console.log('Registered chatRoute paths:', chatRoute.stack.map(r => r.route && r.route.path));
-  }
-} catch (error) {
-  console.error('❌ Error loading chat routes:', error);
-  console.log('⚠️  Running in basic mode without chat functionality');
 
-  // Ensure /api/puter-chat and /api/puter-result are always available as fallback ONLY if chat.js fails
+  // Optional: Log all registered paths
+  if (chatRoute.stack) {
+    console.log('📋 Registered routes:', chatRoute.stack.map(r => r.route?.path));
+  }
+
+} catch (error) {
+  console.error('❌ Error loading chat routes:', error.message);
+  console.error(error.stack);
+
+  console.log('⚠️ Fallback mode enabled (no chat.js)');
+
+  // Fallback endpoints
   app.post('/api/puter-chat', (req, res) => {
     res.json({ 
       allowed: false, 
-      prompt: 'Chat routes are not loaded properly. This is a fallback response.' 
+      prompt: 'Chat routes not loaded. This is fallback mode.' 
     });
   });
 
@@ -59,20 +69,20 @@ try {
   });
 }
 
-const PORT = process.env.PORT || 5000;
-
-// Error handling for the server
+// ✅ Setup error handling for stability
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error.message);
-  console.error('Stack trace:', error.stack);
+  console.error(error.stack);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+// ✅ Start the server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 Frontend should be running on: http://localhost:3000`);
-}); 
+});
