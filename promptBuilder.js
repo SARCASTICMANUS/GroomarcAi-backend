@@ -70,6 +70,9 @@ const CATEGORY_QUESTIONS = {
   'lifestyle and fitness': [
     'activity level', 'fitness goal', 'routine'
   ],
+  'health and fitness': [
+    'activity level', 'fitness goal', 'routine', 'age', 'weight', 'height'
+  ],
   'event styling': [
     'event', 'theme', 'gender', 'age', 'height', 'weight', 'skin color', 'event date', 'venue', 'weather', 'budget'
   ],
@@ -111,6 +114,11 @@ const CATEGORY_QUESTIONS = {
   ]
 };
 
+// Normalize category key for robust lookup
+function normalizeCategoryKey(str) {
+  return (str || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // Build the system instruction for persona, scope, and language
 function buildSystemInstruction(avatar, categoryName, userMessage) {
   try {
@@ -119,42 +127,18 @@ function buildSystemInstruction(avatar, categoryName, userMessage) {
       languageInstruction = 'Reply in Roman Hindi (Hindi using English/Latin letters).';
     }
     let personalizationInstruction = '';
-    const safeCategory = typeof categoryName === 'string' ? categoryName.toLowerCase() : '';
+    const safeCategory = normalizeCategoryKey(categoryName);
+    console.log('DEBUG categoryName:', categoryName, '| safeCategory:', safeCategory);
+    if (safeCategory && !CATEGORY_QUESTIONS[safeCategory]) {
+      console.error('Unknown category in CATEGORY_QUESTIONS:', safeCategory);
+      return `You are ${avatar && avatar.name ? avatar.name : 'the stylist'}, a helpful expert in ${categoryName || 'style'}. Please answer the user question. ${languageInstruction}`;
+    }
     if (safeCategory && CATEGORY_QUESTIONS[safeCategory]) {
-      const missing = [];
-      const questions = CATEGORY_QUESTIONS[safeCategory];
-      const isFemale = isFemaleUser(userMessage, avatar);
-      for (const key of questions) {
-        // For personal styling, handle female-specific
-        if (safeCategory === 'personal styling' && isFemale) {
-          if (['height', 'weight'].includes(key)) continue; // skip general height/weight for female
-          if (key === 'bust' && !hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
-          if (key === 'waist' && !hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
-          if (key === 'hips' && !hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
-        }
-        if (!hasInfo(userMessage, key)) {
-          // Female-specific: add bust/waist/hips for personal styling
-          if (safeCategory === 'personal styling' && isFemale) {
-            if (key === 'age') missing.push('What is your age?');
-          }
-          else missing.push(getQuestionText(key));
-        }
-      }
-      // For female users in personal styling, always ask bust/waist/hips if not present
-      if (safeCategory === 'personal styling' && isFemale) {
-        if (!hasInfo(userMessage, 'bust')) missing.push('What is your bust size?');
-        if (!hasInfo(userMessage, 'waist')) missing.push('What is your waist size?');
-        if (!hasInfo(userMessage, 'hips')) missing.push('What is your hip size?');
-      }
-      if (missing.length > 0) {
-        personalizationInstruction = `Before proceeding with your style request, I would like to know a few things about you.\nPlease answer the following questions as a numbered or bulleted list:\n${missing.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
-      } else {
-        personalizationInstruction = 'You have all the necessary details. Give highly personalized advice based on the provided information.';
-      }
+      personalizationInstruction = 'Give a helpful, concise answer based only on the user\'s question.';
     }
     return `You are ${avatar && avatar.name ? avatar.name : 'the stylist'}, a helpful expert in ${categoryName || 'style'}. Focus on ${safeCategory}-related questions. If the user asks for a list, format your answer as a numbered or bulleted list. ${personalizationInstruction} ${languageInstruction}`;
   } catch (err) {
-    console.error('Error in buildSystemInstruction:', err);
+    console.error('Error in buildSystemInstruction:', err, { avatar, categoryName, userMessage });
     return 'You are a helpful stylist. Please answer the user question.';
   }
 }
