@@ -8,7 +8,7 @@ const app = express();
 // ✅ Allow both production and local dev frontends
 const allowedOrigins = [
   "https://groomarc-ai-icc3.vercel.app", // Vercel
-  "http://localhost:3000"                // Local React
+  // "http://localhost:3000"                // Local React
 ];
 
 const corsOptions = {
