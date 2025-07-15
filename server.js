@@ -2,35 +2,26 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
 /**
  * 🔧 === CORS CONFIGURATION ===
+ * 🌐 Set to PRODUCTION only by default
  */
-
-// ✅ Allowed production origin
 const allowedOrigins = [
-  "https://groomarc-ai-icc3.vercel.app" // <-- ✅ ONLINE FRONTEND
+  "https://groomarc-ai-icc3.vercel.app"  // ✅ Production frontend
 ];
 
-// ✅ Local origin (for development)
-const localOrigin = "http://localhost:3000"; // <-- 🛠️ USE ONLY LOCALLY
-
-// ✅ Switch mode: 'online' for deployment, 'local' for dev
-const MODE = process.env.MODE || 'online'; // 'local' or 'online'
-
-// 🌐 Final origin list
-const finalAllowedOrigins = MODE === 'local'
-  ? [...allowedOrigins, localOrigin]
-  : allowedOrigins;
+// 🧪 Uncomment for local development
+// allowedOrigins.push("http://localhost:3000");
 
 const corsOptions = {
   origin: function (origin, callback) {
     console.log("🌐 CORS Origin:", origin || "undefined");
 
-    // ✅ Allow if origin is in the list or if no origin (Postman/cURL)
-    if (!origin || finalAllowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("❌ Not allowed by CORS: " + origin));
@@ -38,14 +29,17 @@ const corsOptions = {
   },
   credentials: true,
 };
-
-// ✅ CORS middleware
 app.use(cors(corsOptions));
 
 /**
- * ✅ BODY PARSER SETUP
+ * ✅ BODY PARSER
  */
 app.use(bodyParser.json());
+
+/**
+ * ✅ STATIC FILES (for production build of frontend)
+ */
+app.use(express.static(path.join(__dirname, 'client', 'build')));
 
 /**
  * ✅ HEALTH CHECK ENDPOINT
@@ -59,12 +53,12 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * ✅ LOAD CHAT ROUTES SAFELY
+ * ✅ LOAD CHAT ROUTES
  */
 try {
   console.log('🔄 Attempting to load ./chat');
   const chatRoute = require('./chat');
-  
+
   if (!chatRoute) throw new Error("chat.js did not export anything");
 
   app.use('/api', chatRoute);
@@ -79,19 +73,23 @@ try {
   console.error(error.stack);
 
   console.log('⚠️ Fallback mode enabled (no chat.js)');
-
-  // Fallback endpoints
   app.post('/api/puter-chat', (req, res) => {
     res.json({ 
       allowed: false, 
       prompt: 'Chat routes not loaded. This is fallback mode.' 
     });
   });
-
   app.post('/api/puter-result', (req, res) => {
     res.json({ status: 'ok' });
   });
 }
+
+/**
+ * ✅ REACT SPA FALLBACK (Prevent 404 on browser refresh)
+ */
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
+});
 
 /**
  * ✅ ERROR HANDLING
@@ -110,7 +108,6 @@ process.on('unhandledRejection', (reason, promise) => {
  */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🌐 Frontend should be running on: ${MODE === 'local' ? localOrigin : allowedOrigins[0]}`);
 });
